@@ -1,5 +1,5 @@
 const jimp = require('jimp');
-const chroma = require('chroma-js');
+const Tesseract = require('tesseract.js');
 
 var ttD = {};
 
@@ -58,34 +58,50 @@ jimp.read('./img/test_band.png', function(err, img) {
 		let tooltip = img.clone();
 		tooltip.crop(ttD.tlX, ttD.tlY, (ttD.brX - ttD.tlX), (ttD.brY - ttD.tlY))
 			.scale(2);
-			let objecttooltip = tooltip.clone();
-			let commandtooltip = tooltip.clone();
-			
-			console.log('Looking for the object...');
-			objectloop:
-			for (let i = 0; i < objecttooltip.bitmap.height; i++) {
-				for (let j = 0; j < objecttooltip.bitmap.width; j++) {
-					let color = objecttooltip.getPixelColor(j, i);
-					if (color == 0x00d9d9FF) {
-						objecttooltip.crop(j - 10 , 0, objecttooltip.bitmap.width - (j - 10), objecttooltip.bitmap.height)
-						.write(`./img/tooltipobject.${img.getExtension()}`);
-						break objectloop;
-					}
+		let objecttooltip = tooltip.clone();
+		let commandtooltip = tooltip.clone();
+		
+		console.log('Looking for the object...');
+		objectloop:
+		for (let i = 0; i < objecttooltip.bitmap.height; i++) {
+			for (let j = 0; j < objecttooltip.bitmap.width; j++) {
+				let color = objecttooltip.getPixelColor(j, i);
+				if (color == 0x00d9d9FF) {
+					objecttooltip.crop(j - 10, 0, objecttooltip.bitmap.width - (j - 10), objecttooltip.bitmap.height)
+						.write(`./img/tooltipobject.${img.getExtension()}`, function(error) {
+							if (error) {
+								console.log(error); 
+								return;
+							}
+							Tesseract.recognize('./img/tooltipobject.png').then(result => {
+								console.log(`Object is ${result.text.trim()}`);
+							});
+						});
+					break objectloop;
 				}
 			}
+		}
 
-			console.log('Looking for the command...');
-			commandloop:
-			for (let i = 0; i < commandtooltip.bitmap.height; i++) {
-				for (let j = 0; j < commandtooltip.bitmap.width; j++) {
-					let color = commandtooltip.getPixelColor(j, i);
-					if (color == 0x00d9d9FF) {
-						commandtooltip.crop(0 , 0, j - 10, commandtooltip.bitmap.height)
-						.write(`./img/tooltipcommand.${img.getExtension()}`);
-						break commandloop;
-					}
+		console.log('Looking for the command...');
+		commandloop:
+		for (let i = 0; i < commandtooltip.bitmap.height; i++) {
+			for (let j = 0; j < commandtooltip.bitmap.width; j++) {
+				let color = commandtooltip.getPixelColor(j, i);
+				if (color == 0x00d9d9FF) {
+					commandtooltip.crop(0, 0, j - 10, commandtooltip.bitmap.height)
+						.write(`./img/tooltipcommand.${img.getExtension()}`, function(error) {
+							if (error) {
+								console.log(error);
+								return;
+							}
+							Tesseract.recognize('./img/tooltipcommand.png').then(result => {
+								console.log(`Command is ${result.text.trim()}`);
+							});
+						});
+					break commandloop;
 				}
 			}
+		}
 	} else {
 		console.log('Failed to find some or all elements. Sorry!');
 	}
