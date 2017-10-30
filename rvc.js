@@ -1,10 +1,9 @@
 const jimp = require('jimp');
 const chroma = require('chroma-js');
 
-var topleft_x, topleft_y, bottomright_x, bottomright_y;
-var topleft_found = false, bottomright_found = false;
+var ttD = {};
 
-jimp.read('./img/test.png', function(err, img) {
+jimp.read('./img/test_mena.png', function(err, img) {
 	if (err) {
 		console.log(err);
 		return;
@@ -21,9 +20,9 @@ jimp.read('./img/test.png', function(err, img) {
 					//console.log('Top left also found! One more for good luck...');
 					if (img.getPixelColor(j - 2, i - 2) == 0x111F27FF) {
 						console.log(`We definitely found the top left at ${j}, ${i}!`);
-						topleft_found = true;
-						topleft_x = j;
-						topleft_y = i;
+						ttD.tlF = true;
+						ttD.tlX = j;
+						ttD.tlY = i;
 						break tlloop;
 					}
 				}
@@ -31,7 +30,7 @@ jimp.read('./img/test.png', function(err, img) {
 		}
 	}
 
-	if (topleft_found) {
+	if (ttD.tlF) {
 		console.log('Looking for bottom right...');
 		brloop:
 		for (let i = 0; i < img.bitmap.height; i++) {
@@ -43,9 +42,9 @@ jimp.read('./img/test.png', function(err, img) {
 						//console.log('Bottom right also found! One more for good luck...');
 						if (img.getPixelColor(j + 2, i + 2) == 0x111F27FF) {
 							console.log(`We definitely found the bottom right at ${j}, ${i}!`);
-							bottomright_found = true;
-							bottomright_x = j;
-							bottomright_y = i;
+							ttD.brF = true;
+							ttD.brX = j;
+							ttD.brY = i;
 							break brloop;
 						}
 					}
@@ -54,10 +53,12 @@ jimp.read('./img/test.png', function(err, img) {
 		}
 	}
 
-	if (topleft_found && bottomright_found) {
+	if (ttD.tlF && ttD.brF) {
 		console.log('We have enough info to extract the tooltip!!!');
-		img.crop(topleft_x, topleft_y, (bottomright_x - topleft_x), (bottomright_y - topleft_y));
-		img.write(`./img/tooltip.${img.getExtension()}`);
+		let tooltip = img.clone();
+		tooltip.crop(ttD.tlX, ttD.tlY, (ttD.brX - ttD.tlX), (ttD.brY - ttD.tlY))
+			.scale(2)
+			.write(`./img/tooltip.${img.getExtension()}`);
 	} else {
 		console.log('Failed to find some or all elements. Sorry!');
 	}
