@@ -2,8 +2,16 @@ const jimp = require('jimp');
 const Tesseract = require('tesseract.js');
 
 var ttD = {};
+var textColors = [ 
+	0xFFFF00FF, //Yellow (NPCs)
+	0x00FFFFFF, //Cyan (In-world objects)
+	0xACC3C3FF, //Grey 1 (Free-to-play items)
+	0xB8D1D1FF, //Grey 2 (Free-to-play items)
+	0xF8D56BFF, //Orange 1 (Member's items, banked items)
+	0xE7C764FF  //Orange 2 (Member's items, banked items)
+];
 
-jimp.read('./img/test_mena.png', function(err, img) {
+jimp.read('./img/test_cbow.png', function(err, img) {
 	if (err) {
 		console.log(err);
 		return;
@@ -53,25 +61,32 @@ jimp.read('./img/test_mena.png', function(err, img) {
 	if (ttD.tlF && ttD.brF) {
 		let tooltip = img.clone();
 		tooltip.crop(ttD.tlX, ttD.tlY, (ttD.brX - ttD.tlX), (ttD.brY - ttD.tlY))
-			.scale(2)
 			.write(`./img/tit.${img.getExtension()}`);
-		let objecttooltip = tooltip.clone();
-		let commandtooltip = tooltip.clone();
+		let tooltipNoExtended = tooltip.clone();
+		if (tooltipNoExtended.bitmap.width > 320) {
+			tooltipNoExtended.crop(0, 0, tooltipNoExtended.bitmap.width, 33);
+		} else if (tooltipNoExtended.bitmap.width <= 320) {
+			tooltipNoExtended.crop(0, 0, tooltipNoExtended.bitmap.width, 19);
+		}
+		tooltipNoExtended.write('./img/tooltipnoextended.png');
+		let objecttooltip = tooltipNoExtended.clone();
+		let commandtooltip = tooltipNoExtended.clone();
 		
 		console.log('Looking for the object...');
 		objectloop:
 		for (let i = 0; i < objecttooltip.bitmap.height; i++) {
 			for (let j = 0; j < objecttooltip.bitmap.width; j++) {
 				let color = objecttooltip.getPixelColor(j, i);
-				if (color == 0x00d9d9FF || color == 0xffff00FF) {
-					objecttooltip.crop(j - 10, 0, objecttooltip.bitmap.width - (j - 10), objecttooltip.bitmap.height)
+				if (textColors.includes(color)) {
+					console.log(`found on ${j}, ${i}`);
+					objecttooltip.crop(j - 5, 0, objecttooltip.bitmap.width - (j - 5), objecttooltip.bitmap.height).scale(2)
 						.write(`./img/tooltipobject.${img.getExtension()}`, function(error) {
 							if (error) {
 								console.log(error); 
 								return;
 							}
 							Tesseract.recognize('./img/tooltipobject.png').then(result => {
-								console.log(`Object is ${result.text.trim()}`);
+								console.log(`Object is ${result.text.trim().replace('\n', ' ')}`);
 							});
 						});
 					break objectloop;
@@ -84,15 +99,15 @@ jimp.read('./img/test_mena.png', function(err, img) {
 		for (let i = 0; i < commandtooltip.bitmap.height; i++) {
 			for (let j = 0; j < commandtooltip.bitmap.width; j++) {
 				let color = commandtooltip.getPixelColor(j, i);
-				if (color == 0x00d9d9FF || color == 0xffff00FF) {
-					commandtooltip.crop(0, 0, j - 10, commandtooltip.bitmap.height)
+				if (textColors.includes(color)) {
+					commandtooltip.crop(0, 0, j - 5, commandtooltip.bitmap.height).scale(2)
 						.write(`./img/tooltipcommand.${img.getExtension()}`, function(error) {
 							if (error) {
 								console.log(error);
 								return;
 							}
 							Tesseract.recognize('./img/tooltipcommand.png').then(result => {
-								console.log(`Command is ${result.text.trim()}`);
+								console.log(`Command is ${result.text.trim().replace('\n', ' ')}`);
 							});
 						});
 					break commandloop;
