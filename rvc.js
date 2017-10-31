@@ -1,5 +1,6 @@
 const jimp = require('jimp');
 const Tesseract = require('tesseract.js');
+const robot = require('robotjs');
 
 var ttD = {};
 var textColors = [ 
@@ -10,6 +11,23 @@ var textColors = [
 	0xF8D56BFF, //Orange 1 (Member's items, banked items)
 	0xE7C764FF  //Orange 2 (Member's items, banked items)
 ];
+
+
+// Speed up the mouse.
+robot.setMouseDelay(2);
+
+//var twoPI = Math.PI * 2.0;
+var screenSize = robot.getScreenSize();
+var height = (screenSize.height / 2) - 10;
+var width = screenSize.width;
+
+for (var d = 0; d < width; d++)
+{
+	var x;
+	x++;
+	y = height * Math.sin((twoPI * x) / width) + height;
+	robot.moveMouse(x, y);
+}
 
 jimp.read('./img/test_cbow.png', function(err, img) {
 	if (err) {
