@@ -14,18 +14,27 @@ var textColors = [
 
 
 // Speed up the mouse.
-robot.setMouseDelay(2);
+robot.setMouseDelay(0.5);
 
-//var twoPI = Math.PI * 2.0;
 var screenSize = robot.getScreenSize();
-var height = (screenSize.height / 2) - 10;
+var height = screenSize.height;
 var width = screenSize.width;
+var y = 20;
 
-for (var d = 0; d < width; d++)
+for (var x = 0; x < width; x++)
 {
-	var x;
-	x++;
-	y = height * Math.sin((twoPI * x) / width) + height;
+	if(x == (width - 5))
+	{
+		if(y >= height)
+		{
+			
+		}else
+		{
+			//console.log("aaa");
+			x = 0;
+			y += 40;
+		}
+	}
 	robot.moveMouse(x, y);
 }
 
