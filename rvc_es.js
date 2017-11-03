@@ -35,8 +35,12 @@ const mouse = () => {
 		let screenshot = robot.screen.capture(robot.getMousePos().x - 350, robot.getMousePos().y, 700, 300);
 		processScreenie(screenshot);
 
+		if (foundTooltip) {
+			console.log('Tooltip found');
+			process.exit(0);
+		}
 		if (mousePos.x >= screenSize.width - 30) {
-			if (mousePos.y >= screenSize.height || foundTooltip) {
+			if (mousePos.y >= screenSize.height) {
 				console.log('End of screen scan');
 				mousePosReinit();
 				process.exit(0);
@@ -115,7 +119,8 @@ const checkValidity = (img) => {
 const extractInfo = image => {
 	let tooltip = image.clone();
 	console.log(tooltip.getExtension());
-	tooltip.crop(ttD.tlX, ttD.tlY, (ttD.brX - ttD.tlX), (ttD.brY - ttD.tlY));
+	tooltip.crop(ttD.tlX, ttD.tlY, (ttD.brX - ttD.tlX), (ttD.brY - ttD.tlY))
+		.write('./img/aaa.png');
 };
 
 init();
