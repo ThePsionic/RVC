@@ -36,7 +36,7 @@ const mouse = () => {
 		processScreenie(screenshot);
 
 		if (mousePos.x >= screenSize.width - 30) {
-			if (mousePos.y >= screenSize.height && foundTooltip == true) {
+			if (mousePos.y >= screenSize.height || foundTooltip) {
 				console.log('End of screen scan');
 				mousePosReinit();
 				process.exit(0);
