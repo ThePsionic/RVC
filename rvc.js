@@ -21,15 +21,11 @@ var height = screenSize.height;
 var width = screenSize.width;
 var y = 20;
 
-for (var x = 0; x < width; x++)
-{
-	if(x == (width - 5))
-	{
-		if(y >= height)
-		{
+for (var x = 0; x < width; x++) {
+	if (x == (width - 5)) {
+		if (y >= height) {
 			
-		}else
-		{
+		} else {
 			//console.log("aaa");
 			x = 0;
 			y += 40;
