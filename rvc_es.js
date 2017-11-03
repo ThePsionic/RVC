@@ -7,6 +7,7 @@ class Emitter extends EventEmitter {}
 const ee = new Emitter();
 
 var ttD = {};
+var foundTooltip = false;
 var mousePos = {};
 var textColors = [ 
 	0xFFFF00FF, //Yellow (NPCs)
@@ -35,7 +36,7 @@ const mouse = () => {
 		processScreenie(screenshot);
 
 		if (mousePos.x >= screenSize.width - 30) {
-			if (mousePos.y >= screenSize.height) {
+			if (mousePos.y >= screenSize.height && foundTooltip == true) {
 				console.log('End of screen scan');
 				mousePosReinit();
 				process.exit(0);
@@ -103,6 +104,7 @@ const findTooltipRight = img => {
 const checkValidity = (img) => {
 	if (ttD.tlF && ttD.brF) {
 		console.log('Tooltip found, let\'s go!');
+		foundTooltip = true;
 		extractInfo(img);
 	} else {
 		console.log('No tooltip found. Going back to the mouse loop.');

@@ -22,6 +22,8 @@ var width = screenSize.width;
 var y = 20;
 
 for (var x = 0; x < width; x++) {
+	let screenshot = robot.screen.capture(robot.getMousePos().x - 350, robot.getMousePos().y, 700, 300);
+	processScreenie(screenshot);
 	if (x == (width - 5)) {
 		if (y >= height) {
 			
@@ -33,6 +35,19 @@ for (var x = 0; x < width; x++) {
 	}
 	robot.moveMouse(x, y);
 }
+
+const processScreenie = screenshot => {
+	let image = new jimp(screenshot.width, screenshot.height, (err, img) => {
+		img.bitmap.data = screenshot.image;
+		img.scan(0, 0, img.bitmap.width, img.bitmap.height, (x, y, idx) => {
+			var red   = img.bitmap.data[ idx + 0 ];
+			var blue  = img.bitmap.data[ idx + 2 ];
+			img.bitmap.data[ idx + 0 ] = blue;
+			img.bitmap.data[ idx + 2 ] = red;
+		});
+		findTooltipLeft(img);
+	});
+};
 
 jimp.read('./img/test_cbow.png', function(err, img) {
 	if (err) {
