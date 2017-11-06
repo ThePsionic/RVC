@@ -6,7 +6,6 @@ const EventEmitter = require('events');
 class Emitter extends EventEmitter {}
 const ee = new Emitter();
 
-var ttD = {};
 var foundTooltip = false;
 var mousePos = {};
 var textColors = [ 
@@ -32,13 +31,18 @@ const mousePosReinit = () => {
 const mouse = () => {
 	let screenSize = robot.getScreenSize();
 	for (mousePos.x; mousePos.x < screenSize.width; mousePos.x += 25) {
-		let screenshot = robot.screen.capture(robot.getMousePos().x - 350, robot.getMousePos().y, 700, 300);
-		processScreenie(screenshot);
-
 		if (foundTooltip) {
-			console.log('Tooltip found');
-			process.exit(0);
+			break;
+		} else {
+			robot.moveMouse(mousePos.x, mousePos.y);
 		}
+
+		let ttD = {};
+		ttD.screenshot = robot.screen.capture(robot.getMousePos().x - 350, robot.getMousePos().y, 700, 300);
+		ttD.mouseX = mousePos.x;
+		ttD.mouseY = mousePos.y;
+		processScreenie(Object.assign({}, ttD));
+
 		if (mousePos.x >= screenSize.width - 30) {
 			if (mousePos.y >= screenSize.height) {
 				console.log('End of screen scan');
@@ -49,36 +53,37 @@ const mouse = () => {
 				mousePos.y += 40;
 			}
 		}
-
-		robot.moveMouse(mousePos.x, mousePos.y);
 	}
 };
 
-const processScreenie = screenshot => {
-	let image = new jimp(screenshot.width, screenshot.height, (err, img) => {
-		img.bitmap.data = screenshot.image;
-		img.scan(0, 0, img.bitmap.width, img.bitmap.height, (x, y, idx) => {
-			var red   = img.bitmap.data[ idx + 0 ];
-			var blue  = img.bitmap.data[ idx + 2 ];
-			img.bitmap.data[ idx + 0 ] = blue;
-			img.bitmap.data[ idx + 2 ] = red;
-		});
-		findTooltipLeft(img);
-	});
+const processScreenie = ttD => {
+	let image = new jimp(ttD.screenshot.width, ttD.screenshot.height);
+	for (var x = 0; x < ttD.screenshot.width; x++) {
+		for (var y = 0; y < ttD.screenshot.height; y++) {
+			var index = (y * ttD.screenshot.byteWidth) + (x * ttD.screenshot.bytesPerPixel);
+			var red = ttD.screenshot.image[index];
+			var grn = ttD.screenshot.image[index + 1];
+			var blu = ttD.screenshot.image[index + 2];
+			var num = (red * 256) + (grn * 256 * 256) + (blu * 256 * 256 * 256) + 255;
+			image.setPixelColor(num, x, y);
+		}
+	}
+	ttD.img = image;
+	findTooltipLeft(ttD);
 };
 
-const findTooltipLeft = img => {
-	for (let i = 0; i < img.bitmap.height; i++) {
-		for (let j = 0; j < img.bitmap.width; j++) {
-			let color = img.getPixelColor(j, i);
+const findTooltipLeft = ttD => {
+	for (let i = 0; i < ttD.img.bitmap.height; i++) {
+		for (let j = 0; j < ttD.img.bitmap.width; j++) {
+			let color = ttD.img.getPixelColor(j, i);
 			if (color == 0x000000FF) {
-				if (img.getPixelColor(j - 1, i - 1) == 0x14232BFF) {
-					if (img.getPixelColor(j - 2, i - 2) == 0x111F27FF) {
+				if (ttD.img.getPixelColor(j - 1, i - 1) == 0x14232BFF) {
+					if (ttD.img.getPixelColor(j - 2, i - 2) == 0x111F27FF) {
 						console.log(`Top left found at ${j}, ${i}`);
 						ttD.tlF = true;
 						ttD.tlX = j;
 						ttD.tlY = i;
-						findTooltipRight(img);
+						findTooltipRight(ttD);
 					}
 				}
 			}
@@ -86,18 +91,18 @@ const findTooltipLeft = img => {
 	}
 };
 
-const findTooltipRight = img => {
-	for (let i = 0; i < img.bitmap.height; i++) {
-		for (let j = 0; j < img.bitmap.width; j++) {
-			let color = img.getPixelColor(j, i);
+const findTooltipRight = ttD => {
+	for (let i = 0; i < ttD.img.bitmap.height; i++) {
+		for (let j = 0; j < ttD.img.bitmap.width; j++) {
+			let color = ttD.img.getPixelColor(j, i);
 			if (color == 0x000000FF) {
-				if (img.getPixelColor(j + 1, i + 1) == 0x14232BFF) {
-					if (img.getPixelColor(j + 2, i + 2) == 0x111F27FF) {
+				if (ttD.img.getPixelColor(j + 1, i + 1) == 0x14232BFF) {
+					if (ttD.img.getPixelColor(j + 2, i + 2) == 0x111F27FF) {
 						console.log(`Bottom Right found at ${j}, ${i}`);
 						ttD.brF = true;
 						ttD.brX = j;
 						ttD.brY = i;
-						checkValidity(img);
+						checkValidity(ttD);
 					}
 				}
 			}
@@ -105,22 +110,30 @@ const findTooltipRight = img => {
 	}
 };
 
-const checkValidity = (img) => {
+const checkValidity = ttD => {
 	if (ttD.tlF && ttD.brF) {
 		console.log('Tooltip found, let\'s go!');
 		foundTooltip = true;
-		extractInfo(img);
+		//extractInfo(img);
+		moveMouseFinally(ttD);
 	} else {
 		console.log('No tooltip found. Going back to the mouse loop.');
 		ee.emit('mouse');
 	}
 };
 
-const extractInfo = image => {
-	let tooltip = image.clone();
+const moveMouseFinally = ttD => {
+	setTimeout(() => {
+		robot.moveMouse(ttD.mouseX - 25, ttD.mouseY);
+		extractInfo(ttD);
+	}, 500);
+};
+
+const extractInfo = ttD => {
+	let tooltip = ttD.img.clone();
 	console.log(tooltip.getExtension());
 	tooltip.crop(ttD.tlX, ttD.tlY, (ttD.brX - ttD.tlX), (ttD.brY - ttD.tlY))
-		.write('./img/aaa.png');
+		.write('./img/aaaaa.png');
 };
 
 init();
