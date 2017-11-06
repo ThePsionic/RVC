@@ -2,9 +2,10 @@
   "name": "rvc",
   "version": "0.0.1",
   "dependencies": {
+    "desktop-screenshot": "^0.1.1",
     "jimp": "^0.2.28",
-	"robotjs": "^0.4.7",
-	"desktop-screenshot": "^0.1.1",
+    "robotjs": "^0.4.7",
+    "sqlite": "^2.8.0",
     "tesseract.js": "^1.0.10"
   }
 }

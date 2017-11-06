@@ -3,6 +3,9 @@ const Tesseract = require('tesseract.js');
 const robot = require('robotjs');
 const EventEmitter = require('events');
 
+const sql = require('sqlite');
+sql.open('./db/db.sqlite');
+
 class Emitter extends EventEmitter {}
 const ee = new Emitter();
 
@@ -16,10 +19,12 @@ var textColors = [
 	0xF8D56BFF, //Orange 1 (Member's items, banked items)
 	0xE7C764FF  //Orange 2 (Member's items, banked items)
 ];
+// If there's time, we should hard-code locations or sprites
+// for UI elements and the likes
 
 const init = () => {
+	//set up the database here in case it doesn't exist
 	mousePosReinit();
-	//robot.setMouseDelay(0.5);
 	mouse();
 };
 
@@ -41,7 +46,7 @@ const mouse = () => {
 		ttD.screenshot = robot.screen.capture(robot.getMousePos().x - 350, robot.getMousePos().y, 700, 300);
 		ttD.mouseX = mousePos.x;
 		ttD.mouseY = mousePos.y;
-		processScreenie(Object.assign({}, ttD));
+		processScreenie(copy(ttD));
 
 		if (mousePos.x >= screenSize.width - 30) {
 			if (mousePos.y >= screenSize.height) {
@@ -114,7 +119,6 @@ const checkValidity = ttD => {
 	if (ttD.tlF && ttD.brF) {
 		console.log('Tooltip found, let\'s go!');
 		foundTooltip = true;
-		//extractInfo(img);
 		moveMouseFinally(ttD);
 	} else {
 		console.log('No tooltip found. Going back to the mouse loop.');
@@ -132,8 +136,77 @@ const moveMouseFinally = ttD => {
 const extractInfo = ttD => {
 	let tooltip = ttD.img.clone();
 	console.log(tooltip.getExtension());
-	tooltip.crop(ttD.tlX, ttD.tlY, (ttD.brX - ttD.tlX), (ttD.brY - ttD.tlY))
-		.write('./img/aaaaa.png');
+	tooltip.crop(ttD.tlX, ttD.tlY, (ttD.brX - ttD.tlX), (ttD.brY - ttD.tlY));
+	ttD.tooltip = tooltip;
+	//we should be checking database stuff here - separate function probably
+	smallerTooltip(ttD);
+};
+
+const smallerTooltip = ttD => {
+	let smallTT = ttD.tooltip.clone();
+	if (smallTT.bitmap.width > 320) {
+		smallTT.crop(0, 0, smallTT.bitmap.width, 33);
+	} else if (smallTT.bitmap.width <= 320) {
+		smallTT.crop(0, 0, smallTT.bitmap.width, 19);
+	}
+	ttD.smallTT = smallTT;
+	readCommand(ttD);
+};
+
+const readCommand = ttD => {
+	let commandtooltip = ttD.smallTT.clone();
+	for (let i = 0; i < commandtooltip.bitmap.height; i++) {
+		for (let j = 0; j < commandtooltip.bitmap.width; j++) {
+			let color = commandtooltip.getPixelColor(j, i);
+			if (textColors.includes(color)) {
+				commandtooltip.crop(0, 0, j - 5, commandtooltip.bitmap.height).scale(2)
+					.write('./img/tooltipcommand.png', function(error) {
+						if (error) {
+							console.log(error); 
+							return;
+						}
+						Tesseract.recognize('./img/tooltipcommand.png').then(result => {
+							ttD.objectText = result.text.trim().replace('\n', ' ');
+							console.log(`Command is ${ttD.objectText}`);
+							readObject(ttD);
+						});
+					});
+			}
+		}
+	}
+};
+
+const readObject = ttD => {
+	let objecttooltip = ttD.smallTT.clone();
+	for (let i = 0; i < objecttooltip.bitmap.height; i++) {
+		for (let j = 0; j < objecttooltip.bitmap.width; j++) {
+			let color = objecttooltip.getPixelColor(j, i);
+			if (textColors.includes(color)) {
+				objecttooltip.crop(j - 5, 0, objecttooltip.bitmap.width - (j - 5), objecttooltip.bitmap.height).scale(2)
+					.write('./img/tooltipobject.png', function(error) {
+						if (error) {
+							console.log(error); 
+							return;
+						}
+						Tesseract.recognize('./img/tooltipobject.png').then(result => {
+							ttD.commandText = result.text.trim().replace('\n', ' ');
+							console.log(`Object is ${result.text.trim().replace('\n', ' ')}`);
+							finalFunction(ttD);
+						});
+					});
+			}
+		}
+	}
+};
+
+const finalFunction = ttD => {
+	setTimeout(() => {
+		process.exit(0);
+	}, 5000);
+};
+
+const copy = object => {
+	return Object.assign({}, object);
 };
 
 init();
