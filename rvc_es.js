@@ -23,9 +23,13 @@ var textColors = [
 // for UI elements and the likes
 
 const init = () => {
-	//set up the database here in case it doesn't exist
+	databaseSetup();
 	mousePosReinit();
 	mouse();
+};
+
+const databaseSetup = () => {
+	sql.run('CREATE TABLE IF NOT EXISTS tooltips (base64 TEXT PRIMARY KEY, command TEXT NOT NULL, object TEXT NOT NULL');
 };
 
 const mousePosReinit = () => {
@@ -135,7 +139,6 @@ const moveMouseFinally = ttD => {
 
 const extractInfo = ttD => {
 	let tooltip = ttD.img.clone();
-	console.log(tooltip.getExtension());
 	tooltip.crop(ttD.tlX, ttD.tlY, (ttD.brX - ttD.tlX), (ttD.brY - ttD.tlY));
 	ttD.tooltip = tooltip;
 	//we should be checking database stuff here - separate function probably
@@ -190,7 +193,7 @@ const readObject = ttD => {
 						}
 						Tesseract.recognize('./img/tooltipobject.png').then(result => {
 							ttD.commandText = result.text.trim().replace('\n', ' ');
-							console.log(`Object is ${result.text.trim().replace('\n', ' ')}`);
+							console.log(`Object is ${ttD.commandText}`);
 							finalFunction(ttD);
 						});
 					});
