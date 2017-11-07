@@ -37,6 +37,20 @@ const mousePosReinit = () => {
 	mousePos.x = 0;
 };
 
+const readline = require('readline');
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+rl.question('What object are you looking for? ', (answer) => {
+  // TODO: Log the answer in a database
+  console.log(`You looked for ${answer}`);
+
+  rl.close();
+});
+
 const mouse = () => {
 	let screenSize = robot.getScreenSize();
 	for (mousePos.x; mousePos.x < screenSize.width; mousePos.x += 25) {
