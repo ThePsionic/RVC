@@ -13,6 +13,9 @@ const rl = readline.createInterface({
 class Emitter extends EventEmitter {}
 const ee = new Emitter();
 
+var objectInput
+var commandInput;
+
 var foundTooltip = false;
 var mousePos = {};
 var textColors = [ 
@@ -47,11 +50,11 @@ const mousePosReinit = () => {
 
 const awaitInput = () => {
 	rl.question('Please input a command!', command => {
-		let commandInput = command.toString().trim();
+		commandInput = command.toString().trim();
 		if (commandInput != '') {
 			console.log('command input!');
 			rl.question('Please input an object!', object => {
-				let objectInput = object.toString().trim();
+				objectInput = object.toString().trim();
 				if (objectInput != '') {
 					console.log('object input!');
 					console.log(`Your input: You want to ${commandInput} the/a(n) ${objectInput}.`);
@@ -81,6 +84,7 @@ const mouse = () => {
 		if (mousePos.x >= screenSize.width - 30) {
 			if (mousePos.y >= screenSize.height) {
 				console.log('End of screen scan');
+				console.log(ttD.objectText + " " + ttD.commandText + " " + objectInput + " " + commandInput);
 				mousePosReinit();
 				process.exit(0);
 			} else {
@@ -260,6 +264,7 @@ const addToDatabase = ttD => {
 
 const finalFunction = ttD => {
 	setTimeout(() => {
+		console.log(ttD.objectText + " " + ttD.commandText + " " + objectInput + " " + commandInput);
 		process.exit(0);
 	}, 5000);
 };
