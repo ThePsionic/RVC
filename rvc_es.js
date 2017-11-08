@@ -4,7 +4,6 @@ const robot = require('robotjs');
 const EventEmitter = require('events');
 
 const sql = require('sqlite');
-sql.open('./db/db.sqlite');
 
 class Emitter extends EventEmitter {}
 const ee = new Emitter();
@@ -29,27 +28,17 @@ const init = () => {
 };
 
 const databaseSetup = () => {
-	sql.run('CREATE TABLE IF NOT EXISTS tooltips (base64 TEXT PRIMARY KEY, command TEXT NOT NULL, object TEXT NOT NULL');
+	sql.open('./db/db.sqlite').then(() => {
+		sql.run('CREATE TABLE IF NOT EXISTS tooltips (base64 TEXT PRIMARY KEY, command TEXT NOT NULL, object TEXT NOT NULL)').catch(err2 => {
+			if (err2) console.log('Error creating table tooltips (catch): ' + err2);
+		});
+	});
 };
 
 const mousePosReinit = () => {
 	mousePos.y = 30;
 	mousePos.x = 0;
 };
-
-const readline = require('readline');
-
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
-});
-
-rl.question('What object are you looking for? ', (answer) => {
-  // TODO: Log the answer in a database
-  console.log(`You looked for ${answer}`);
-
-  rl.close();
-});
 
 const mouse = () => {
 	let screenSize = robot.getScreenSize();
@@ -155,7 +144,6 @@ const extractInfo = ttD => {
 	let tooltip = ttD.img.clone();
 	tooltip.crop(ttD.tlX, ttD.tlY, (ttD.brX - ttD.tlX), (ttD.brY - ttD.tlY));
 	ttD.tooltip = tooltip;
-	//we should be checking database stuff here - separate function probably
 	smallerTooltip(ttD);
 };
 
@@ -167,7 +155,26 @@ const smallerTooltip = ttD => {
 		smallTT.crop(0, 0, smallTT.bitmap.width, 19);
 	}
 	ttD.smallTT = smallTT;
-	readCommand(ttD);
+	checkDatabaseBypass(ttD);
+};
+
+const checkDatabaseBypass = ttD => { 
+	ttD.smallTT.getBase64('image/png', (err, result) => {
+		sql.get(`SELECT * FROM tooltips WHERE base64="${result}"`).then(row => {
+			if (!row) {
+				console.log('Going into OCR...');
+				readCommand(ttD);
+			} else {
+				console.log('Bypassing OCR...');
+				ttD.objectText = row.object;
+				ttD.commandText = row.command;
+				console.log('Database said: object: ' + ttD.objectText + ', command: ' + ttD.commandText);
+				finalFunction(ttD);
+			}
+		}).catch(err2 => {
+			if (err2) throw err2;
+		});
+	});
 };
 
 const readCommand = ttD => {
@@ -176,15 +183,15 @@ const readCommand = ttD => {
 		for (let j = 0; j < commandtooltip.bitmap.width; j++) {
 			let color = commandtooltip.getPixelColor(j, i);
 			if (textColors.includes(color)) {
-				commandtooltip.crop(0, 0, j - 5, commandtooltip.bitmap.height).scale(2)
+				commandtooltip.crop(0, 0, j - 3, commandtooltip.bitmap.height).scale(2)
 					.write('./img/tooltipcommand.png', function(error) {
 						if (error) {
 							console.log(error); 
 							return;
 						}
 						Tesseract.recognize('./img/tooltipcommand.png').then(result => {
-							ttD.objectText = result.text.trim().replace('\n', ' ');
-							console.log(`Command is ${ttD.objectText}`);
+							ttD.commandText = result.text.trim().replace('\n', ' ');
+							console.log(`Command is ${ttD.commandText}`);
 							readObject(ttD);
 						});
 					});
@@ -199,21 +206,32 @@ const readObject = ttD => {
 		for (let j = 0; j < objecttooltip.bitmap.width; j++) {
 			let color = objecttooltip.getPixelColor(j, i);
 			if (textColors.includes(color)) {
-				objecttooltip.crop(j - 5, 0, objecttooltip.bitmap.width - (j - 5), objecttooltip.bitmap.height).scale(2)
+				objecttooltip.crop(j - 3, 0, objecttooltip.bitmap.width - (j - 3), objecttooltip.bitmap.height).scale(2)
 					.write('./img/tooltipobject.png', function(error) {
 						if (error) {
 							console.log(error); 
 							return;
 						}
 						Tesseract.recognize('./img/tooltipobject.png').then(result => {
-							ttD.commandText = result.text.trim().replace('\n', ' ');
-							console.log(`Object is ${ttD.commandText}`);
-							finalFunction(ttD);
+							ttD.objectText = result.text.trim().replace('\n', ' ');
+							console.log(`Object is ${ttD.objectText}`);
+							addToDatabase(ttD);
 						});
 					});
 			}
 		}
 	}
+};
+
+const addToDatabase = ttD => {
+	ttD.smallTT.getBase64('image/png', (err, result) => {
+		console.log('addToDatabase result length: ' + result.length);
+		sql.run('INSERT INTO tooltips VALUES (?,?,?)', result, ttD.commandText, ttD.objectText).then(() => {
+			finalFunction(ttD);
+		}).catch(err2 => {
+			if (err2) throw err2;
+		});
+	});
 };
 
 const finalFunction = ttD => {
