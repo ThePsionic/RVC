@@ -2,16 +2,17 @@ const jimp = require('jimp');
 const Tesseract = require('tesseract.js');
 const robot = require('robotjs');
 const EventEmitter = require('events');
-
 const sql = require('sqlite');
+
+const readline = require('readline');
+const rl = readline.createInterface({
+	input: process.stdin,
+	output: process.stdout
+});
 
 class Emitter extends EventEmitter {}
 const ee = new Emitter();
 
-
-var CommandInputBool;
-var ObjectInputBool;
-var stdin = process.openStdin();
 var foundTooltip = false;
 var mousePos = {};
 var textColors = [ 
@@ -28,9 +29,7 @@ var textColors = [
 const init = () => {
 	databaseSetup();
 	mousePosReinit();
-	mouse();
-	ObjectInputBool = false;
-	CommandInputBool = false;
+	awaitInput();
 };
 
 const databaseSetup = () => {
@@ -46,65 +45,50 @@ const mousePosReinit = () => {
 	mousePos.x = 0;
 };
 
+const awaitInput = () => {
+	rl.question('Please input a command!', command => {
+		let commandInput = command.toString().trim();
+		if (commandInput != '') {
+			console.log('command input!');
+			rl.question('Please input an object!', object => {
+				let objectInput = object.toString().trim();
+				if (objectInput != '') {
+					console.log('object input!');
+					console.log(`Your input: You want to ${commandInput} the/a(n) ${objectInput}.`);
+					mouse();
+				}
+			});
+		}
+	});
+};
+
 const mouse = () => {
 	let screenSize = robot.getScreenSize();
-	let CommandInput;
-	let ObjectInput;
 
-	if(!CommandInputBool)
-	{
-		console.log("Please input a command:");
-		stdin.addListener("data", function(D) 
-		{
-			CommandInput = D.toString().trim();
-			if(CommandInput != "")
-			{
-				console.log("h");
-				CommandInputBool = true;
+	for (mousePos.x; mousePos.x < screenSize.width; mousePos.x += 25) {
+		if (foundTooltip) {
+			break;
+		} else {
+			robot.moveMouse(mousePos.x, mousePos.y);
+		}
+
+		let ttD = {};
+		ttD.screenshot = robot.screen.capture(robot.getMousePos().x - 350, robot.getMousePos().y, 700, 300);
+		ttD.mouseX = mousePos.x;
+		ttD.mouseY = mousePos.y;
+		processScreenie(copy(ttD));
+
+		if (mousePos.x >= screenSize.width - 30) {
+			if (mousePos.y >= screenSize.height) {
+				console.log('End of screen scan');
+				mousePosReinit();
+				process.exit(0);
+			} else {
+				mousePos.x = 0;
+				mousePos.y += 40;
 			}
-		});
+		}
 	}
-
-	if(!ObjectInputBool && CommandInputBool)
-	{
-		console.log("Please input an object to look for:");
-		stdin.addListener("data", function(A) 
-		{
-			ObjectInput = A.toString().trim();
-			if(ObjectInput != "")
-			{
-				ObjectInputBool = true;
-			}
-		});
-	}
-
-			if(CommandInput != null && ObjectInput != null){
-				console.log("Your query was: [" + CommandInput + " " + ObjectInput + "]");
-				for (mousePos.x; mousePos.x < screenSize.width; mousePos.x += 25) {
-					if (foundTooltip) {
-						break;
-					} else {
-						robot.moveMouse(mousePos.x, mousePos.y);
-					}
-
-					let ttD = {};
-					ttD.screenshot = robot.screen.capture(robot.getMousePos().x - 350, robot.getMousePos().y, 700, 300);
-					ttD.mouseX = mousePos.x;
-					ttD.mouseY = mousePos.y;
-					processScreenie(copy(ttD));
-
-					if (mousePos.x >= screenSize.width - 30) {
-						if (mousePos.y >= screenSize.height) {
-							console.log('End of screen scan');
-							mousePosReinit();
-							process.exit(0);
-						} else {
-							mousePos.x = 0;
-							mousePos.y += 40;
-						}
-					}
-				}
-			}
 };
 
 const processScreenie = ttD => {
