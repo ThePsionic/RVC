@@ -70,6 +70,10 @@ const mouse = () => {
 
 	for (mousePos.x; mousePos.x < screenSize.width; mousePos.x += 25) {
 		if (foundTooltip) {
+			if(objectInput == ttD.objectText)
+			{
+				console.log("Hi nerd");
+			}
 			break;
 		} else {
 			robot.moveMouse(mousePos.x, mousePos.y);
@@ -85,10 +89,6 @@ const mouse = () => {
 			if (mousePos.y >= screenSize.height) {
 				console.log('End of screen scan');
 				console.log(ttD.objectText + ' ' + ttD.commandText + ' ' + objectInput + ' ' + commandInput);
-				if(objectInput == ttD.objectText)
-				{
-					console.log("Hi nerd");
-				}
 				mousePosReinit();
 				process.exit(0);
 			} else {
