@@ -85,6 +85,10 @@ const mouse = () => {
 			if (mousePos.y >= screenSize.height) {
 				console.log('End of screen scan');
 				console.log(ttD.objectText + ' ' + ttD.commandText + ' ' + objectInput + ' ' + commandInput);
+				if(objectInput == ttD.objectText)
+				{
+					console.log("Hi nerd");
+				}
 				mousePosReinit();
 				process.exit(0);
 			} else {
