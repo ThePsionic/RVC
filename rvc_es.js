@@ -58,14 +58,17 @@ const awaitInput = () => {
 				if (objectInput != '') {
 					console.log('object input!');
 					console.log(`Your input: You want to ${commandInput} the/a(n) ${objectInput}.`);
-					mouse();
+					let ttD = {};
+					ttD.requestedCommand = commandInput;
+					ttD.requestedObject = objectInput;
+					mouse(ttD);
 				}
 			});
 		}
 	});
 };
 
-const mouse = () => {
+const mouse = ttD => {
 	let screenSize = robot.getScreenSize();
 
 	for (mousePos.x; mousePos.x < screenSize.width; mousePos.x += 25) {
@@ -75,7 +78,6 @@ const mouse = () => {
 			robot.moveMouse(mousePos.x, mousePos.y);
 		}
 
-		let ttD = {};
 		ttD.screenshot = robot.screen.capture(robot.getMousePos().x - 350, robot.getMousePos().y, 700, 300);
 		ttD.mouseX = mousePos.x;
 		ttD.mouseY = mousePos.y;
@@ -153,21 +155,12 @@ const findTooltipRight = ttD => {
 const checkValidity = ttD => {
 	if (ttD.tlF && ttD.brF) {
 		console.log('Tooltip found, let\'s go!');
-
-		//foundTooltip = true;
-		//moveMouseFinally(ttD);
+		foundTooltip = true;
 		extractInfo(ttD);
 	} else {
 		console.log('No tooltip found. Going back to the mouse loop.');
 		ee.emit('mouse');
 	}
-};
-
-const moveMouseFinally = ttD => {
-	setTimeout(() => {
-		robot.moveMouse(ttD.mouseX - 25, ttD.mouseY);
-		extractInfo(ttD);
-	}, 500);
 };
 
 const extractInfo = ttD => {
@@ -185,13 +178,15 @@ const smallerTooltip = ttD => {
 		smallTT.crop(0, 0, smallTT.bitmap.width, 19);
 	}
 	ttD.smallTT = smallTT;
+	ttD.commandtooltip = smallTT.clone();
+	ttD.objecttooltip = smallTT.clone();
 	checkDatabaseBypass(ttD);
 };
 
 const checkDatabaseBypass = ttD => { 
-	console.log("Tit");
+	console.log('Starting bypass check...');
 	ttD.smallTT.getBase64('image/png', (err, result) => {
-		console.log("Dick");
+		console.log(`B64 length: ${result.length}`);
 		sql.get(`SELECT * FROM tooltips WHERE base64="${result}"`).then(row => {
 			if (!row) {
 				console.log('Going into OCR...');
@@ -201,7 +196,7 @@ const checkDatabaseBypass = ttD => {
 				ttD.objectText = row.object;
 				ttD.commandText = row.command;
 				console.log('Database said: object: ' + ttD.objectText + ', command: ' + ttD.commandText);
-				finalFunction(ttD);
+				checkName(ttD);
 			}
 		}).catch(err2 => {
 			if (err2) throw err2;
@@ -210,12 +205,13 @@ const checkDatabaseBypass = ttD => {
 };
 
 const readCommand = ttD => {
-	let commandtooltip = ttD.smallTT.clone();
+	let commandtooltip = ttD.commandtooltip;
+	commandtooltip.write('./img/alsotemp.png');
 	for (let i = 0; i < commandtooltip.bitmap.height; i++) {
 		for (let j = 0; j < commandtooltip.bitmap.width; j++) {
 			let color = commandtooltip.getPixelColor(j, i);
 			if (textColors.includes(color)) {
-				commandtooltip.crop(0, 0, j - 3, commandtooltip.bitmap.height).scale(2)
+				commandtooltip.crop(0, 0, j - 5, commandtooltip.bitmap.height).scale(2)
 					.write('./img/tooltipcommand.png', function(error) {
 						if (error) {
 							console.log(error); 
@@ -233,13 +229,16 @@ const readCommand = ttD => {
 };
 
 const readObject = ttD => {
-	let objecttooltip = ttD.smallTT.clone();
+	let objecttooltip = ttD.objecttooltip;
+	objecttooltip.write('./img/temp.png');
+	console.log('Starting OCR object co-routine');
 	for (let i = 0; i < objecttooltip.bitmap.height; i++) {
 		for (let j = 0; j < objecttooltip.bitmap.width; j++) {
 			let color = objecttooltip.getPixelColor(j, i);
 			if (textColors.includes(color)) {
-				objecttooltip.crop(j - 3, 0, objecttooltip.bitmap.width - (j - 3), objecttooltip.bitmap.height).scale(2)
+				objecttooltip.crop(j - 5, 0, objecttooltip.bitmap.width - (j - 5), objecttooltip.bitmap.height).scale(2)
 					.write('./img/tooltipobject.png', function(error) {
+						console.log('writing tooltip object');
 						if (error) {
 							console.log(error); 
 							return;
@@ -247,11 +246,7 @@ const readObject = ttD => {
 						Tesseract.recognize('./img/tooltipobject.png').then(result => {
 							ttD.objectText = result.text.trim().replace('\n', ' ');
 							console.log(`Object is ${ttD.objectText}`);
-							if(ttD.objectText == objectInput)
-							{
-								foundTooltip = true;
-								addToDatabase(ttD);
-							}
+							addToDatabase(ttD);
 						});
 					});
 			}
@@ -263,11 +258,32 @@ const addToDatabase = ttD => {
 	ttD.smallTT.getBase64('image/png', (err, result) => {
 		console.log('addToDatabase result length: ' + result.length);
 		sql.run('INSERT INTO tooltips VALUES (?,?,?)', result, ttD.commandText, ttD.objectText).then(() => {
-			finalFunction(ttD);
+			checkName(ttD);
 		}).catch(err2 => {
 			if (err2) throw err2;
 		});
 	});
+};
+
+const checkName = ttD => {
+	if (ttD.objectText.toLowerCase() == ttD.requestedObject.toLowerCase()) {
+		console.log('Names matches, time to stop!');
+		moveMouseFinally(ttD);
+	} else {
+		console.log('Names don\'t match, time to continue');
+		foundTooltip = false;
+		let newttD = {};
+		newttD.requestedCommand = ttD.requestedCommand;
+		newttD.requestedObject = ttD.requestedObject;
+		mouse(newttD);
+	}
+};
+
+const moveMouseFinally = ttD => {
+	setTimeout(() => {
+		robot.moveMouse(ttD.mouseX - 25, ttD.mouseY);
+		finalFunction(ttD);
+	}, 500);
 };
 
 const finalFunction = ttD => {
