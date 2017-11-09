@@ -70,10 +70,6 @@ const mouse = () => {
 
 	for (mousePos.x; mousePos.x < screenSize.width; mousePos.x += 25) {
 		if (foundTooltip) {
-			if(objectInput == ttD.objectText)
-			{
-				console.log("Hi nerd");
-			}
 			break;
 		} else {
 			robot.moveMouse(mousePos.x, mousePos.y);
@@ -89,6 +85,7 @@ const mouse = () => {
 			if (mousePos.y >= screenSize.height) {
 				console.log('End of screen scan');
 				console.log(ttD.objectText + ' ' + ttD.commandText + ' ' + objectInput + ' ' + commandInput);
+
 				mousePosReinit();
 				process.exit(0);
 			} else {
@@ -157,8 +154,9 @@ const checkValidity = ttD => {
 	if (ttD.tlF && ttD.brF) {
 		console.log('Tooltip found, let\'s go!');
 
-		foundTooltip = true;
-		moveMouseFinally(ttD);
+		//foundTooltip = true;
+		//moveMouseFinally(ttD);
+		extractInfo(ttD);
 	} else {
 		console.log('No tooltip found. Going back to the mouse loop.');
 		ee.emit('mouse');
@@ -191,7 +189,9 @@ const smallerTooltip = ttD => {
 };
 
 const checkDatabaseBypass = ttD => { 
+	console.log("Tit");
 	ttD.smallTT.getBase64('image/png', (err, result) => {
+		console.log("Dick");
 		sql.get(`SELECT * FROM tooltips WHERE base64="${result}"`).then(row => {
 			if (!row) {
 				console.log('Going into OCR...');
@@ -247,7 +247,11 @@ const readObject = ttD => {
 						Tesseract.recognize('./img/tooltipobject.png').then(result => {
 							ttD.objectText = result.text.trim().replace('\n', ' ');
 							console.log(`Object is ${ttD.objectText}`);
-							addToDatabase(ttD);
+							if(ttD.objectText == objectInput)
+							{
+								foundTooltip = true;
+								addToDatabase(ttD);
+							}
 						});
 					});
 			}
