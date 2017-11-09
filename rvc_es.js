@@ -13,7 +13,7 @@ const rl = readline.createInterface({
 class Emitter extends EventEmitter {}
 const ee = new Emitter();
 
-var objectInput
+var objectInput;
 var commandInput;
 
 var foundTooltip = false;
@@ -84,7 +84,7 @@ const mouse = () => {
 		if (mousePos.x >= screenSize.width - 30) {
 			if (mousePos.y >= screenSize.height) {
 				console.log('End of screen scan');
-				console.log(ttD.objectText + " " + ttD.commandText + " " + objectInput + " " + commandInput);
+				console.log(ttD.objectText + ' ' + ttD.commandText + ' ' + objectInput + ' ' + commandInput);
 				mousePosReinit();
 				process.exit(0);
 			} else {
@@ -264,7 +264,7 @@ const addToDatabase = ttD => {
 
 const finalFunction = ttD => {
 	setTimeout(() => {
-		console.log(ttD.objectText + " " + ttD.commandText + " " + objectInput + " " + commandInput);
+		console.log(ttD.objectText + ' ' + ttD.commandText + ' ' + objectInput + ' ' + commandInput);
 		process.exit(0);
 	}, 5000);
 };
