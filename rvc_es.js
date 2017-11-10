@@ -257,12 +257,18 @@ const readObject = ttD => {
 const addToDatabase = ttD => {
 	ttD.smallTT.getBase64('image/png', (err, result) => {
 		console.log('addToDatabase result length: ' + result.length);
+		ttD.commandText = cleanText(ttD.commandText);
+		ttD.objectText = cleanText(ttD.objectText);
 		sql.run('INSERT INTO tooltips VALUES (?,?,?)', result, ttD.commandText, ttD.objectText).then(() => {
 			checkName(ttD);
 		}).catch(err2 => {
 			if (err2) throw err2;
 		});
 	});
+};
+
+const cleanText = text => {
+	return text.replace('—', '-').replace(/( (?:'|‘)|(?:'|‘) )/g, '');
 };
 
 const checkName = ttD => {
