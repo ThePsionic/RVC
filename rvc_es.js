@@ -1,7 +1,6 @@
 const jimp = require('jimp');
 const Tesseract = require('tesseract.js');
 const robot = require('robotjs');
-const EventEmitter = require('events');
 const sql = require('sqlite');
 
 const readline = require('readline');
@@ -10,11 +9,7 @@ const rl = readline.createInterface({
 	output: process.stdout
 });
 
-class Emitter extends EventEmitter {}
-const ee = new Emitter();
-
 var objectInput;
-var commandInput;
 
 var foundTooltip = false;
 var mousePos = {};
@@ -35,9 +30,14 @@ const init = () => {
 	awaitInput();
 };
 
+const reinit = () => {
+	mousePosReinit();
+	awaitInput();
+};
+
 const databaseSetup = () => {
 	sql.open('./db/db.sqlite').then(() => {
-		sql.run('CREATE TABLE IF NOT EXISTS tooltips (base64 TEXT PRIMARY KEY, command TEXT NOT NULL, object TEXT NOT NULL)').catch(err2 => {
+		sql.run('CREATE TABLE IF NOT EXISTS tooltips (base64 TEXT PRIMARY KEY, object TEXT NOT NULL)').catch(err2 => {
 			if (err2) console.log('Error creating table tooltips (catch): ' + err2);
 		});
 	});
@@ -49,25 +49,14 @@ const mousePosReinit = () => {
 };
 
 const awaitInput = () => {
-	rl.question('Please input a command!', command => {
-		commandInput = command.toString().trim();
-		if(commandInput == 'Exit')
-		{
-			process.exit(0);
-		}
-		if (commandInput != '') {
-			console.log('command input!');
-			rl.question('Please input an object!', object => {
-				objectInput = object.toString().trim();
-				if (objectInput != '') {
-					console.log('object input!');
-					console.log(`Your input: You want to ${commandInput} the/a(n) ${objectInput}.`);
-					let ttD = {};
-					ttD.requestedCommand = commandInput;
-					ttD.requestedObject = objectInput;
-					mouse(ttD);
-				}
-			});
+	rl.question('Please input an object!', object => {
+		objectInput = object.toString().trim();
+		if (objectInput != '') {
+			console.log('object input!');
+			console.log(`Your input: You want to find the/a(n) ${objectInput}.`);
+			let ttD = {};
+			ttD.requestedObject = objectInput;
+			mouse(ttD);
 		}
 	});
 };
@@ -90,7 +79,6 @@ const mouse = ttD => {
 		if (mousePos.x >= screenSize.width - 30) {
 			if (mousePos.y >= screenSize.height) {
 				console.log('End of screen scan');
-				console.log(ttD.objectText + ' ' + ttD.commandText + ' ' + objectInput + ' ' + commandInput);
 
 				mousePosReinit();
 				process.exit(0);
@@ -163,7 +151,7 @@ const checkValidity = ttD => {
 		extractInfo(ttD);
 	} else {
 		console.log('No tooltip found. Going back to the mouse loop.');
-		ee.emit('mouse');
+		
 	}
 };
 
@@ -182,7 +170,6 @@ const smallerTooltip = ttD => {
 		smallTT.crop(0, 0, smallTT.bitmap.width, 19);
 	}
 	ttD.smallTT = smallTT;
-	ttD.commandtooltip = smallTT.clone();
 	ttD.objecttooltip = smallTT.clone();
 	checkDatabaseBypass(ttD);
 };
@@ -194,12 +181,11 @@ const checkDatabaseBypass = ttD => {
 		sql.get(`SELECT * FROM tooltips WHERE base64="${result}"`).then(row => {
 			if (!row) {
 				console.log('Going into OCR...');
-				readCommand(ttD);
+				readObject(ttD);
 			} else {
 				console.log('Bypassing OCR...');
 				ttD.objectText = row.object;
-				ttD.commandText = row.command;
-				console.log('Database said: object: ' + ttD.objectText + ', command: ' + ttD.commandText);
+				console.log('Database said: object: ' + ttD.objectText);
 				checkName(ttD);
 			}
 		}).catch(err2 => {
@@ -208,38 +194,14 @@ const checkDatabaseBypass = ttD => {
 	});
 };
 
-const readCommand = ttD => {
-	let commandtooltip = ttD.commandtooltip;
-	commandtooltip.write('./img/alsotemp.png');
-	for (let i = 0; i < commandtooltip.bitmap.height; i++) {
-		for (let j = 0; j < commandtooltip.bitmap.width; j++) {
-			let color = commandtooltip.getPixelColor(j, i);
-			if (textColors.includes(color)) {
-				commandtooltip.crop(0, 0, j - 5, commandtooltip.bitmap.height).scale(2)
-					.write('./img/tooltipcommand.png', function(error) {
-						if (error) {
-							console.log(error); 
-							return;
-						}
-						Tesseract.recognize('./img/tooltipcommand.png').then(result => {
-							ttD.commandText = result.text.trim().replace('\n', ' ');
-							console.log(`Command is ${ttD.commandText}`);
-							readObject(ttD);
-						});
-					});
-			}
-		}
-	}
-};
-
 const readObject = ttD => {
 	let objecttooltip = ttD.objecttooltip;
-	objecttooltip.write('./img/temp.png');
-	console.log('Starting OCR object co-routine');
+	let found = false;
 	for (let i = 0; i < objecttooltip.bitmap.height; i++) {
 		for (let j = 0; j < objecttooltip.bitmap.width; j++) {
 			let color = objecttooltip.getPixelColor(j, i);
 			if (textColors.includes(color)) {
+				found = true;
 				objecttooltip.crop(j - 5, 0, objecttooltip.bitmap.width - (j - 5), objecttooltip.bitmap.height).scale(2)
 					.write('./img/tooltipobject.png', function(error) {
 						console.log('writing tooltip object');
@@ -256,14 +218,20 @@ const readObject = ttD => {
 			}
 		}
 	}
+	if (!found) {
+		console.log('Tooltip contained no object name - skipping!');
+		foundTooltip = false;
+		let newttD = {};
+		newttD.requestedObject = ttD.requestedObject;
+		mouse(newttD);
+	}
 };
 
 const addToDatabase = ttD => {
 	ttD.smallTT.getBase64('image/png', (err, result) => {
 		console.log('addToDatabase result length: ' + result.length);
-		ttD.commandText = cleanText(ttD.commandText);
 		ttD.objectText = cleanText(ttD.objectText);
-		sql.run('INSERT INTO tooltips VALUES (?,?,?)', result, ttD.commandText, ttD.objectText).then(() => {
+		sql.run('INSERT INTO tooltips VALUES (?,?)', result, ttD.objectText).then(() => {
 			checkName(ttD);
 		}).catch(err2 => {
 			if (err2) throw err2;
@@ -283,7 +251,6 @@ const checkName = ttD => {
 		console.log('Names don\'t match, time to continue');
 		foundTooltip = false;
 		let newttD = {};
-		newttD.requestedCommand = ttD.requestedCommand;
 		newttD.requestedObject = ttD.requestedObject;
 		mouse(newttD);
 	}
@@ -300,9 +267,8 @@ const moveMouseFinally = ttD => {
 
 const finalFunction = ttD => {
 	setTimeout(() => {
-		console.log(ttD.objectText + ' ' + ttD.commandText + ' ' + objectInput + ' ' + commandInput);
 		foundTooltip = false;
-		awaitInput();
+		reinit();
 		//process.exit(0);
 	}, 5000);
 };
