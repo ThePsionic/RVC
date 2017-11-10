@@ -51,6 +51,10 @@ const mousePosReinit = () => {
 const awaitInput = () => {
 	rl.question('Please input a command!', command => {
 		commandInput = command.toString().trim();
+		if(commandInput == 'Exit')
+		{
+			process.exit(0);
+		}
 		if (commandInput != '') {
 			console.log('command input!');
 			rl.question('Please input an object!', object => {
@@ -288,6 +292,8 @@ const checkName = ttD => {
 const moveMouseFinally = ttD => {
 	setTimeout(() => {
 		robot.moveMouse(ttD.mouseX - 25, ttD.mouseY);
+		robot.mouseClick();
+		robot.moveMouse(ttD.mouseX, ttD.mouseY - 25);
 		finalFunction(ttD);
 	}, 500);
 };
@@ -295,7 +301,9 @@ const moveMouseFinally = ttD => {
 const finalFunction = ttD => {
 	setTimeout(() => {
 		console.log(ttD.objectText + ' ' + ttD.commandText + ' ' + objectInput + ' ' + commandInput);
-		process.exit(0);
+		foundTooltip = false;
+		awaitInput();
+		//process.exit(0);
 	}, 5000);
 };
 
